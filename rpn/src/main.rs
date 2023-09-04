@@ -78,14 +78,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )
                 .split(size);
 
-            let copyright = Paragraph::new("all rights reserved")
+            let copyright = Paragraph::new("crtp.io all rights reserved")
                 .style(Style::default().fg(Color::Black))
                 .alignment(Alignment::Center)
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
                         .style(Style::default().fg(Color::Black))
-                        .title("Copyright")
+                        .title(" Copyright ")
                         .border_type(BorderType::Rounded)
                 );
 
@@ -96,12 +96,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Block::default()
                         .borders(Borders::ALL)
                         .style(Style::default().fg(Color::Black))
-                        .title("User Input")
+                        .title(" User Input ")
                         .border_type(BorderType::Rounded)
                 );
 
+            let stack = Paragraph::new("")
+                .style(Style::default().fg(Color::Black))
+                .alignment(Alignment::Center)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Black))
+                        .title(" RPN Stack ")
+                        .border_type(BorderType::Rounded)
+                );
+
+            let docs = Paragraph::new(" RPN - Reverse Polish Notation - Notes ")
+                .style(Style::default().fg(Color::Black))
+                .alignment(Alignment::Center)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Black))
+                        .title(" RPN Notes ")
+                        .border_type(BorderType::Rounded)
+                );
+
+
+
             rect.render_widget(input, chunks[0]);
 
+
+            let middle_windows = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(
+                    [Constraint::Percentage(30), Constraint::Percentage(70)]
+                )
+                .split(chunks[1]);
+
+            rect.render_widget(stack, middle_windows[0]);
+            rect.render_widget(docs, middle_windows[1]);
 
 
             rect.render_widget(copyright, chunks[2]);
@@ -110,8 +144,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match rx.recv()? {
             Event::Input(event) => match event.code {
                 KeyCode::Esc => {
-                    //disable_raw_mode()?;
-                    //terminal.show_cursor()?;
                     break;
                 }
                 _ => {}
