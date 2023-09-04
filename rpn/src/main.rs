@@ -63,20 +63,55 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
 
-        //terminal.draw(|rect| {
+        terminal.draw(|rect| {
+            let size = rect.size();
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(2)
+                .constraints(
+                    [
+                        Constraint::Length(3),
+                        Constraint::Min(2),
+                        Constraint::Length(3),
+                    ]
+                    .as_ref(),
+                )
+                .split(size);
 
-        //})?;
-        //break
+            let copyright = Paragraph::new("all rights reserved")
+                .style(Style::default().fg(Color::Black))
+                .alignment(Alignment::Center)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Black))
+                        .title("Copyright")
+                        .border_type(BorderType::Rounded)
+                );
+
+            let input = Paragraph::new("enter data here")
+                .style(Style::default().fg(Color::Black))
+                .alignment(Alignment::Center)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Black))
+                        .title("User Input")
+                        .border_type(BorderType::Rounded)
+                );
+
+            rect.render_widget(input, chunks[0]);
+
+
+
+            rect.render_widget(copyright, chunks[2]);
+        })?;
+
         match rx.recv()? {
             Event::Input(event) => match event.code {
-                //KeyCode::Char('q') => {
-                //    disable_raw_mode()?;
-                //    terminal.show_cursor()?;
-                //    break;
-                //}
                 KeyCode::Esc => {
-                    disable_raw_mode()?;
-                    terminal.show_cursor()?;
+                    //disable_raw_mode()?;
+                    //terminal.show_cursor()?;
                     break;
                 }
                 _ => {}
@@ -86,6 +121,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    disable_raw_mode()?;
+    let _ = terminal.clear();
+    terminal.show_cursor()?;
     Ok(())
 }
+
 
