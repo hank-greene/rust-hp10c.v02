@@ -1,69 +1,86 @@
-use chrono::prelude::*;
-use crossterm::{
-    event::{self, Event as CEvent, KeyCode},
-    terminal::{disable_raw_mode, enable_raw_mode},
-};
-
-use std::io;
-use std::sync::mpsc;
-use std::time::{Duration, Instant};
-use std::thread;
+use crossterm::event::{Event,EventStream,KeyCode,KeyEvent};
+use crossterm::terminal::{ disable_raw_mode, enable_raw_mode };
+use futures::StreamExt;
+use std::io::{self, Write};
+use std::time::Duration;
 use tui::{
-    backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    style::{Color, Style},
     widgets::{
-        Block, BorderType, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs
+        Block, BorderType, Borders, Paragraph
     },
-    Terminal,
 };
+use tui::{backend::CrosstermBackend, Terminal};
+use tui_textarea::TextArea;
 
-enum Event<I> {
-    Input(I),
-    Tick,
-}
+// libhunt.com/compare-tokio-vs-async-std
+// https://users.rust-lang.org/t/text-mode-terminal-application-with-asynchronous-input-output/74760
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-    println!("4 windows 4 rpn");
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     enable_raw_mode().expect("can run in raw mode");
 
-    let (tx, rx ) = mpsc::channel();
-    let tick_rate  = Duration::from_millis(200);
-    thread::spawn(move ||{
-        let mut last_tick = Instant::now();
+    let ( input_s, mut input_r ) = tokio::sync::mpsc::channel::<Option<String>>(100);
+    let ( output_s, mut output_r) = tokio::sync::mpsc::channel::<String>(100);
+    tokio::spawn(async move {
+
+        let mut user_entry = Some(String::from("Startup string; Welcome to RPN"));
+        let mut send_user_entry: bool = true;
+
         loop {
-
-            let timeout = tick_rate
-                .checked_sub(last_tick.elapsed())
-                .unwrap_or_else(|| Duration::from_secs(0));
-
-            if event::poll(timeout).expect("poll works") {
-                if let CEvent::Key(key) = event::read().expect("can read events") {
-                    tx.send(Event::Input(key)).expect("can send events");
-                }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            if let Ok(new_state) = input_r.try_recv() {
+                user_entry = new_state;
+                send_user_entry = true;
             }
 
-            if last_tick.elapsed() >= tick_rate {
-                if let Ok(_) = tx.send(Event::Tick) {
-                    last_tick = Instant::now();
+            if send_user_entry {
+                match user_entry.clone() {
+                    Some(line) => {
+                        match line.as_str() {
+                            _ => {
+                                output_s
+                                    .send(format!("{}",line))
+                                    .await
+                                    .unwrap();
+                                send_user_entry = false;
+                            }
+                        }
+                    }
+                    None => {
+                        break;
+                    }
                 }
             }
-
         }
     });
+
+    let mut msg: Vec<String> = Vec::new();
+    let mut log: Vec<String> = Vec::new();
+    let mut stack: Vec<String> = Vec::new();
+
+    let mut input_buffer: String = String::new();
+    let mut textarea: TextArea<'_> = TextArea::default();
+
+    textarea.set_block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Input"),   
+    );
+    textarea.set_cursor_style(Style::default());
+
+    let mut reader = EventStream::new();
 
     let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-
     loop {
 
         terminal.draw(|rect| {
+
             let size = rect.size();
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -78,31 +95,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )
                 .split(size);
 
-            let copyright = Paragraph::new("crtp.io all rights reserved")
+            let input = Paragraph::new(&*input_buffer)
                 .style(Style::default().fg(Color::Black))
-                .alignment(Alignment::Center)
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
                         .style(Style::default().fg(Color::Black))
-                        .title(" Copyright ")
+                        .title(" Input ")
                         .border_type(BorderType::Rounded)
                 );
 
-            let input = Paragraph::new("enter data here")
-                .style(Style::default().fg(Color::Black))
-                .alignment(Alignment::Center)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .style(Style::default().fg(Color::Black))
-                        .title(" User Input ")
-                        .border_type(BorderType::Rounded)
-                );
+            rect.render_widget(input, chunks[0]);
 
-            let stack = Paragraph::new("")
+            let stack = Paragraph::new(stack.join("\n"))
                 .style(Style::default().fg(Color::Black))
-                .alignment(Alignment::Center)
+                .alignment(Alignment::Left)
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
@@ -122,11 +129,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .border_type(BorderType::Rounded)
                 );
 
-
-
-            rect.render_widget(input, chunks[0]);
-
-
             let middle_windows = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints(
@@ -137,19 +139,70 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             rect.render_widget(stack, middle_windows[0]);
             rect.render_widget(docs, middle_windows[1]);
 
+            let copyright = Paragraph::new("crtp.io all rights reserved")
+                .style(Style::default().fg(Color::Black))
+                .alignment(Alignment::Center)
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .style(Style::default().fg(Color::Black))
+                        .title(" Copyright ")
+                        .border_type(BorderType::Rounded)
+                );
 
             rect.render_widget(copyright, chunks[2]);
+
         })?;
 
-        match rx.recv()? {
-            Event::Input(event) => match event.code {
-                KeyCode::Esc => {
-                    break;
-                }
-                _ => {}
 
-            },
-            Event::Tick => {}
+        tokio::select! {
+
+            user_entry = output_r.recv() => {
+
+                let entry: String = user_entry.unwrap();
+                if entry.contains("help") {
+
+                } else if entry.contains("p") {
+
+                } else {
+                    stack.push(entry);
+                }
+            }
+
+            user_event = reader.next() => {
+                let event = match user_event {
+                    None => break,
+                    Some(Err(_)) => break,
+                    Some(Ok(event)) => event,
+                };
+
+                match event {
+                    //Quit
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Esc, ..
+                    }) => {
+                        break;
+                    }
+                    // Send link
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Enter, ..
+                    }) => {
+                        input_s.send(Some(input_buffer.clone())).await.unwrap();
+                        input_buffer.clear();
+                    }
+                    //Type character
+                    Event::Key(KeyEvent{
+                        code: KeyCode::Char(c), ..
+                    }) => {
+                        input_buffer.push(c);
+                    }
+                    _ => {
+                        write!(terminal.backend_mut().by_ref(), "\x07")?;
+                        terminal.backend_mut().flush()?;
+                    }
+                }
+            }
+
         }
     }
 
