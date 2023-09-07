@@ -13,6 +13,69 @@ use tui::{
 use tui::{backend::CrosstermBackend, Terminal};
 use tui_textarea::TextArea;
 
+fn notes() -> Vec<String> {
+
+    let mut n01: Vec<String> = Vec::new();
+    n01.push(" ".to_string());
+    n01.push(" here's the first line.".to_string());
+    n01.push(" ".to_string());
+    n01.push(" type \" help \" to, well, get some help".to_string());
+
+    n01
+}
+
+fn compute(op: String, first: String, second: String) -> String {
+    let result: String;
+    let mut interem_result: f32 = 0.0;
+
+    let first_operand: f32 = first.parse().unwrap();
+    let second_operand: f32 = second.parse().unwrap();
+
+    if op.contains("+") { // TODO convert to an enumeration type, use match?
+        interem_result = first_operand + second_operand;
+    } else if op.contains("-") {
+        interem_result = first_operand - second_operand;
+    } else if op.contains("*") {
+        interem_result = first_operand * second_operand;
+    } else if op.contains("/") {
+        interem_result = first_operand / second_operand;
+    }
+
+    result = interem_result.to_string();
+    result
+}
+
+fn process_rpn(mut stack: Vec<String>) -> Vec<String> {
+    let result: Vec<String>;
+
+    if stack.len() >= 3 {
+        if stack[0].contains("+") ||
+           stack[0].contains("-") || 
+           stack[0].contains("*") ||
+           stack[0].contains("/") {
+
+            let compute_result = compute(stack[0].clone(), stack[1].clone(), stack[2].clone());
+
+            stack.remove(0);
+            stack.remove(0);
+            stack.remove(0);
+
+            stack.insert(0, compute_result);
+
+        } else {
+            // TODO send an error message
+            //      need an opporator at top of stack
+        }
+    } else {
+        // TODO send an error message
+        //      minimal requirements not meet
+        //      need at least two opperands and one operator
+    }
+
+    result = stack.clone();
+    result
+}
+
 // libhunt.com/compare-tokio-vs-async-std
 // https://users.rust-lang.org/t/text-mode-terminal-application-with-asynchronous-input-output/74760
 
@@ -56,9 +119,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let mut msg: Vec<String> = Vec::new();
-    let mut log: Vec<String> = Vec::new();
+    let mut display_notes: Vec<String> = Vec::new();
+    display_notes.push(" ".to_string());
+    display_notes.push(" enter \" help \" to get well help".to_string());
     let mut stack: Vec<String> = Vec::new();
+    let mut intermediate_stack: Vec<String> = Vec::new();
 
     let mut input_buffer: String = String::new();
     let mut textarea: TextArea<'_> = TextArea::default();
@@ -108,7 +173,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             rect.render_widget(input, chunks[0]);
 
             let stack = Paragraph::new(stack.join("\n"))
-                .style(Style::default().fg(Color::Black))
+                .style(Style::default().fg(Color::Blue))
                 .alignment(Alignment::Left)
                 .block(
                     Block::default()
@@ -118,9 +183,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .border_type(BorderType::Rounded)
                 );
 
-            let docs = Paragraph::new(" RPN - Reverse Polish Notation - Notes ")
+            let docs = Paragraph::new(display_notes.join("\n"))
                 .style(Style::default().fg(Color::Black))
-                .alignment(Alignment::Center)
+                .alignment(Alignment::Left)
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
@@ -139,20 +204,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             rect.render_widget(stack, middle_windows[0]);
             rect.render_widget(docs, middle_windows[1]);
 
-            let copyright = Paragraph::new("crtp.io all rights reserved")
+            let copyright = Paragraph::new("MIT")
                 .style(Style::default().fg(Color::Black))
                 .alignment(Alignment::Center)
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
                         .style(Style::default().fg(Color::Black))
-                        .title(" Copyright ")
+                        .title(" License ")
                         .border_type(BorderType::Rounded)
                 );
 
             rect.render_widget(copyright, chunks[2]);
 
         })?;
+
+
 
 
         tokio::select! {
@@ -162,10 +229,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let entry: String = user_entry.unwrap();
                 if entry.contains("help") {
 
+                    display_notes = notes();
+
                 } else if entry.contains("p") {
 
+                    stack.pop();
+                    intermediate_stack.pop();
+
+                } else if entry.contains("=") {
+
+                    stack = process_rpn(stack);
+                    intermediate_stack = stack.clone();
+                    intermediate_stack.reverse();
+
                 } else {
-                    stack.push(entry);
+
+                    intermediate_stack.push(entry);
+                    stack = intermediate_stack.clone();
+                    stack.reverse();
+
                 }
             }
 
@@ -182,6 +264,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         code: KeyCode::Esc, ..
                     }) => {
                         break;
+                    }
+                    //Delete
+                    Event::Key(KeyEvent {
+                        code: KeyCode::Backspace, ..
+                    }) => {
+                        input_buffer.pop();
                     }
                     // Send link
                     Event::Key(KeyEvent {
