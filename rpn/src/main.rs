@@ -50,7 +50,7 @@ fn process_rpn(mut stack: Vec<String>) -> Vec<String> {
 
     if stack.len() >= 3 {
         if stack[0].contains("+") ||
-           stack[0].contains("-") || 
+           stack[0].contains("-") ||
            stack[0].contains("*") ||
            stack[0].contains("/") {
 
@@ -76,8 +76,10 @@ fn process_rpn(mut stack: Vec<String>) -> Vec<String> {
     result
 }
 
+// reference material used in growing this thing
 // libhunt.com/compare-tokio-vs-async-std
 // https://users.rust-lang.org/t/text-mode-terminal-application-with-asynchronous-input-output/74760
+// blog.logrocket.com/rust-and-tui-building-a-command-line-interface-in-rust/
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -121,7 +123,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut display_notes: Vec<String> = Vec::new();
     display_notes.push(" ".to_string());
-    display_notes.push(" enter \" help \" to get well help".to_string());
+    display_notes.push(" enter \" help \" to get 'well' help".to_string());
+    display_notes.push(" ".to_string());
+
+
+
     let mut stack: Vec<String> = Vec::new();
     let mut intermediate_stack: Vec<String> = Vec::new();
 
@@ -131,7 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     textarea.set_block(
         Block::default()
             .borders(Borders::ALL)
-            .title("Input"),   
+            .title("Input"),
     );
     textarea.set_cursor_style(Style::default());
 
