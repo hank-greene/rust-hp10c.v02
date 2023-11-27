@@ -17,7 +17,7 @@ enter <br/>
 <img src="https://github.com/hank-greene/rust-hp10c.v02/blob/main/00-pics/05-enter-2.png?raw=true" />
 
 hit + key <br/>
-<img src="https://github.com/hank-greene/rust-hp10c.v02/blob/main/00-pics/06-enter-plus.png?raw=true" />
+<img src="https://github.com/hank-greene/rust-hp10c.v02/blob/main/00-pics/06-hit-plus-key.png?raw=true" />
 
 enter <br/>
 <img src="https://github.com/hank-greene/rust-hp10c.v02/blob/main/00-pics/07-enter-plus.png?raw=true" />
