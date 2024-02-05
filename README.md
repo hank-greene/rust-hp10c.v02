@@ -1,5 +1,5 @@
 # rust-hp10c.v02
-Learning Rust, Creating an RPN Calculator (starting one anyway)
+A Rust implemented RPN Calculator, a start.
 
 <pre>./target/debug/rpn </pre><br/>
 <img src="https://github.com/hank-greene/rust-hp10c.v02/blob/main/00-pics/01-start.png?raw=true" />
